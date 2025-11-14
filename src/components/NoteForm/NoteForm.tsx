@@ -1,44 +1,45 @@
 import type { FC } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createNote } from "../../services/noteService";
+import type { NoteTag } from "../../types/note";
 import css from "./NoteForm.module.css";
 
 interface NoteFormProps {
-  onSubmit: () => void;
+  onCancel: () => void;
 }
 
 interface FormValues {
   title: string;
   content: string;
-  tag: string;
+  tag: NoteTag;
 }
 
-const NoteForm: FC<NoteFormProps> = ({ onSubmit }) => {
-  const initialValues: FormValues = {
-    title: "",
-    content: "",
-    tag: "Todo",
-  };
+const NoteForm: FC<NoteFormProps> = ({ onCancel }) => {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (values: FormValues) => createNote(values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      onCancel();
+    },
+  });
 
   const validationSchema = Yup.object({
     title: Yup.string().min(3).max(50).required(),
     content: Yup.string().max(500),
-    tag: Yup.string()
+    tag: Yup.mixed<NoteTag>()
       .oneOf(["Todo", "Work", "Personal", "Meeting", "Shopping"])
       .required(),
   });
 
   return (
-    <Formik
-      initialValues={initialValues}
+    <Formik<FormValues>
+      initialValues={{ title: "", content: "", tag: "Todo" }}
       validationSchema={validationSchema}
-      onSubmit={async (values, { resetForm, setSubmitting }) => {
-        await createNote(values);
-        resetForm();
-        setSubmitting(false);
-        onSubmit();
-      }}
+      onSubmit={(values) => mutation.mutate(values)}
     >
       {({ isSubmitting }) => (
         <Form className={css.form}>
@@ -54,8 +55,8 @@ const NoteForm: FC<NoteFormProps> = ({ onSubmit }) => {
               as="textarea"
               id="content"
               name="content"
-              className={css.textarea}
               rows={8}
+              className={css.textarea}
             />
             <ErrorMessage
               name="content"
@@ -73,9 +74,18 @@ const NoteForm: FC<NoteFormProps> = ({ onSubmit }) => {
               <option value="Meeting">Meeting</option>
               <option value="Shopping">Shopping</option>
             </Field>
+            <ErrorMessage name="tag" component="span" className={css.error} />
           </div>
 
           <div className={css.actions}>
+            <button
+              type="button"
+              className={css.cancelButton}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+
             <button
               type="submit"
               disabled={isSubmitting}

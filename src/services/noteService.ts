@@ -8,7 +8,6 @@ axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
 export interface FetchNotesResponse {
   notes: Note[];
-  totalNotes: number;
   totalPages: number;
 }
 
@@ -25,7 +24,7 @@ export const fetchNotes = async (
 };
 
 export const createNote = async (
-  note: Omit<Note, "id">
+  note: Omit<Note, "id" | "createdAt" | "updatedAt">
 ): Promise<Note> => {
   const { data } = await axios.post<Note>(BASE_URL, note);
   return data;
